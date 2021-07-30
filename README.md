@@ -37,18 +37,18 @@ cmake .. && make -j$(nproc) && sudo make install
 
 
 
-## [Pepper & Carrot](https://www.peppercarrot.com/) included in examples folder (episode 1)
+### [Pepper & Carrot](https://www.peppercarrot.com/) included in examples folder (episode 1)
 
 Open source comic licensed under [Creative Commons Attribution 4.0 International license](https://creativecommons.org/licenses/by/4.0/)
 
-### Attribution to:
+#### Attribution to:
 
 Art: David Revoy.
 Scenario: David Revoy.
 English (original version) Proofreading: Alex Gryson, Amireeti.
 
 
-### Credit for the universe of Pepper&Carrot:
+#### Credit for the universe of Pepper&Carrot:
 
 Creation: David Revoy.
 Lead Maintainer: Craig Maloney.

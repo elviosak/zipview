@@ -32,6 +32,10 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
         vbox->addWidget(lbl, 0, Qt::AlignHCenter);
         allLabels.append(lbl);
     }
+    endLabel = new QLabel("End");
+    endLabel->setFont(bigFont);
+    vbox->addWidget(endLabel, 0, Qt::AlignHCenter);
+    endLabel->hide();
 
     connect(area->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::scrollChanged);
     resizeTimer = new QTimer;
@@ -119,6 +123,7 @@ void MainWindow::loadFile(QString f)
         pageComboBox->addItem(QString::number(i));
     }
     loadFromIndex();
+    endLabel->show();
 }
 
 void MainWindow::loadFromIndex(int index)

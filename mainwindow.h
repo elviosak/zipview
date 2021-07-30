@@ -29,6 +29,7 @@ private:
     QStringList fileList;
     int currentIndex;
     QLabel *defaultLabel;
+    QLabel *endLabel;
     QList<QLabel *> allLabels;
     QList<QPixmap> allPixmaps;
 
