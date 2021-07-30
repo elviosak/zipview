@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="zipview">resources/zipview.svg</file>
+    </qresource>
+</RCC>
