@@ -2,6 +2,78 @@
 
 #define WIDTH 600
 
+MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
+    : QMainWindow(parent)
+{
+    setAcceptDrops(true);
+    setWindowIcon(QIcon(":/zipview"));
+    s = new QSettings("zipview", "zipview");
+    openFolder = s->value("openFolder", QString()).toString();
+    wid = new QWidget;
+    vbox = new QVBoxLayout(wid);
+    vbox->setContentsMargins(0,0,0,0);
+    wid->setContentsMargins(0,0,0,0);
+    area = new QScrollArea;
+    area->setWidgetResizable(true);
+    area->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    area->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    area->setWidget(wid);
+    setCentralWidget(area);
+    auto bigFont = font();
+    if (font().pixelSize() > 0)
+        bigFont.setPixelSize(font().pixelSize() * 1.5);
+    if (font().pointSize() > 0)
+        bigFont.setPointSize(font().pointSize() * 1.5);
+    defaultLabel = new QLabel("Select or Drop file");
+    defaultLabel->setFont(bigFont);
+    vbox->addWidget(defaultLabel, 0, Qt::AlignCenter);
+    for (int i = 0; i < 7; ++i) {
+        auto lbl = new QLabel;
+        vbox->addWidget(lbl, 0, Qt::AlignHCenter);
+        allLabels.append(lbl);
+    }
+
+    connect(area->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::scrollChanged);
+    resizeTimer = new QTimer;
+    resizeTimer->setInterval(100);
+    resizeTimer->setSingleShot(true);
+    connect(resizeTimer, &QTimer::timeout, this, &MainWindow::resizeTimeout);
+    currentPage = new QLabel;
+    pageComboBox = new QComboBox;
+    pageComboBox->setEditable(false);
+    connect(pageComboBox, QOverload<int>::of(&QComboBox::activated), this, &MainWindow::loadFromIndex);
+    currentFile = new QLabel;
+    selectBtn = new QPushButton("Open");
+    statusBar()->addWidget(selectBtn);
+    statusBar()->addWidget(pageComboBox);
+    statusBar()->addWidget(currentPage);
+    statusBar()->addWidget(currentFile);
+    connect(selectBtn, &QPushButton::clicked, this, [=] {
+        QString f = QFileDialog::getOpenFileName(this, tr("Open File"),
+                                                        openFolder,
+                                                        tr("Manga zip Files (*.zip *.cbz)"));
+        if (!f.isEmpty()) {
+            QFileInfo info(f);
+            openFolder = info.absolutePath();
+            s->setValue("openFolder", openFolder);
+            loadFile(f);
+        }
+    });
+    resize(WIDTH, 800);
+    if (argc > 1) {
+        auto fileName = QString::fromUtf8(argv[1]);
+        if (QFile::exists(fileName)) {
+            QTimer::singleShot(100, this, [this, fileName] {
+                loadFile(fileName);
+            });
+        }
+    }
+}
+
+MainWindow::~MainWindow()
+{
+}
+
 int MainWindow::getImageWidth()
 {
     int w = qMax(WIDTH, size().width());
@@ -22,7 +94,6 @@ void MainWindow::resizeEvent(QResizeEvent *e)
 
 void MainWindow::loadFile(QString f)
 {
-    allPixmaps.clear();
     fileList.clear();
     pageComboBox->clear();
     QFileInfo info(f);
@@ -30,7 +101,7 @@ void MainWindow::loadFile(QString f)
         QMessageBox::warning(this, "Invalid File", QString("file: %1\n is not valid").arg(f));
         return;
     }
-
+    defaultLabel->hide();
     zip = new QuaZip(f);
     zip->open(QuaZip::Mode::mdUnzip);
     fileList = zip->getFileNameList();
@@ -47,16 +118,14 @@ void MainWindow::loadFile(QString f)
     for (int i = 1; i <= total; ++i) {
         pageComboBox->addItem(QString::number(i));
     }
-    loadFive();
+    loadFromIndex();
 }
 
-void MainWindow::loadFive(int index)
+void MainWindow::loadFromIndex(int index)
 {
-
     allPixmaps.clear();
-
     int start = qMax(0, index - 1);
-    int end = qMin(start + 4, fileList.count() - 1);
+    int end = qMin(start + 6, fileList.count() - 1);
     pageComboBox->setCurrentIndex(start);
     zip->open(QuaZip::Mode::mdUnzip);
     for (int i = start; i <= end; ++i) {
@@ -70,7 +139,7 @@ void MainWindow::loadFive(int index)
         currentIndex = i;
     }
     zip->close();
-    while (allPixmaps.count() < 5) {
+    while (allPixmaps.count() < 7) {
         allPixmaps.append(QPixmap());
     }
     loadPixmaps();
@@ -109,12 +178,11 @@ void MainWindow::loadNext()
 
 void MainWindow::loadPrev()
 {
-    qDebug() << "loadPrev" << currentIndex;
-    if (currentIndex < 5)
+    if (currentIndex < 7)
         return;
 
     currentIndex--;
-    int first = currentIndex - 4;
+    int first = currentIndex - 6;
     auto fileName = fileList.at(first);
     zip->open(QuaZip::Mode::mdUnzip);
     zip->setCurrentFile(fileName);
@@ -138,9 +206,8 @@ void MainWindow::loadPixmaps()
 {
     if (allPixmaps.count() == 0)
         return;
-
     auto w = getImageWidth();
-    for (int i = 0; i< 5; ++i) {
+    for (int i = 0; i < 7; ++i) {
         auto pix = allPixmaps.at(i);
         auto lbl = allLabels.at(i);
         if (pix.isNull())
@@ -150,11 +217,17 @@ void MainWindow::loadPixmaps()
     }
 }
 
-void MainWindow::scrollChanged(int v)
+void MainWindow::scrollChanged(int /*v*/)
 {
-    if ((currentIndex + 1 < fileList.count()) && (v > area->verticalScrollBar()->maximum() * 2 / 3))
+    if (allLabels.at(5)
+        && allLabels.at(5)->geometry()
+            .translated(0, wid->geometry().y())
+            .intersects(area->geometry()))
         loadNext();
-    else if (currentIndex > 4 && v == 0)
+    else if (allLabels.at(0)
+        && allLabels.at(0)->geometry()
+           .translated(0, wid->geometry().y())
+           .intersects(area->geometry()))
         loadPrev();
 
     updatePage();
@@ -171,7 +244,7 @@ void MainWindow::updatePage()
             break;
         }
     }
-    page = currentIndex - qMin(fileList.count(), 5) + page;
+    page = currentIndex - qMin(fileList.count(), 7) + page;
     pageComboBox->setCurrentIndex(page);
 }
 
@@ -192,69 +265,3 @@ void MainWindow::dropEvent(QDropEvent *e)
         loadFile(fileName);
 
 }
-
-MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
-    : QMainWindow(parent)
-{
-    setAcceptDrops(true);
-    setWindowIcon(QIcon(":/zipview"));
-    s = new QSettings("zipview", "zipview");
-    openFolder = s->value("openFolder", QString()).toString();
-    wid = new QWidget;
-    vbox = new QVBoxLayout(wid);
-    vbox->setContentsMargins(0,0,0,0);
-    wid->setContentsMargins(0,0,0,0);
-    area = new QScrollArea;
-    area->setWidgetResizable(true);
-    area->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    area->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    area->setWidget(wid);
-    setCentralWidget(area);
-
-    for (int i = 0; i < 5; ++i) {
-        auto lbl = new QLabel;
-        vbox->addWidget(lbl, 0, Qt::AlignHCenter);
-        allLabels.append(lbl);
-    }
-
-    connect(area->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::scrollChanged);
-    resizeTimer = new QTimer;
-    resizeTimer->setInterval(100);
-    resizeTimer->setSingleShot(true);
-    connect(resizeTimer, &QTimer::timeout, this, &MainWindow::resizeTimeout);
-    currentPage = new QLabel;
-    pageComboBox = new QComboBox;
-    pageComboBox->setEditable(false);
-    connect(pageComboBox, QOverload<int>::of(&QComboBox::activated), this, &MainWindow::loadFive);
-    currentFile = new QLabel;
-    selectBtn = new QPushButton("Open");
-    statusBar()->addWidget(selectBtn);
-    statusBar()->addWidget(pageComboBox);
-    statusBar()->addWidget(currentPage);
-    statusBar()->addWidget(currentFile);
-    connect(selectBtn, &QPushButton::clicked, this, [=] {
-        QString f = QFileDialog::getOpenFileName(this, tr("Open File"),
-                                                        openFolder,
-                                                        tr("Manga zip Files (*.zip *.cbz)"));
-        if (!f.isEmpty()) {
-            QFileInfo info(f);
-            openFolder = info.absolutePath();
-            s->setValue("openFolder", openFolder);
-            loadFile(f);
-        }
-    });
-    resize(WIDTH, 800);
-    if (argc > 1) {
-        auto fileName = QString::fromUtf8(argv[1]);
-        if (QFile::exists(fileName)) {
-            QTimer::singleShot(100, this, [this, fileName] {
-                loadFile(fileName);
-            });
-        }
-    }
-}
-
-MainWindow::~MainWindow()
-{
-}
-

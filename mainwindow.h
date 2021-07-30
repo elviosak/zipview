@@ -4,11 +4,16 @@
 #include <QtWidgets>
 #include <quazip/quazip.h>
 #include <quazip/quazipfile.h>
-//class Scroll;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
+public:
+    MainWindow(int argc, char *argv[], QWidget *parent = nullptr);
+    ~MainWindow();
+
+private:
     QSettings *s;
     QString openFolder;
     QWidget *wid;
@@ -23,6 +28,7 @@ class MainWindow : public QMainWindow
     QuaZipFile *file;
     QStringList fileList;
     int currentIndex;
+    QLabel *defaultLabel;
     QList<QLabel *> allLabels;
     QList<QPixmap> allPixmaps;
 
@@ -31,7 +37,7 @@ class MainWindow : public QMainWindow
     void resizeTimeout();
     void resizeEvent(QResizeEvent *);
     void loadFile(QString f);
-    void loadFive(int index = 0);
+    void loadFromIndex(int index = 0);
     void loadNext();
     void loadPrev();
     void loadPixmaps();
@@ -39,10 +45,5 @@ class MainWindow : public QMainWindow
     void updatePage();
     void dragEnterEvent(QDragEnterEvent *e) override;
     void dropEvent(QDropEvent *e) override;
-public:
-    MainWindow(int argc, char *argv[], QWidget *parent = nullptr);
-    ~MainWindow();
-
-
 };
 #endif // MAINWINDOW_H

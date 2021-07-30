@@ -13,7 +13,7 @@ zipview "/path/to/file.zip"
 
 Scroll with mouse wheel or click to focus the image and use Up/Down arrow keys or Page Up/Page Down.
 
-![video](examples/video.mp4)
+![video](examples/video.gif)
 
 ## Requirements
 - CMake
