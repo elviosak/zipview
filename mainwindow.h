@@ -5,6 +5,19 @@
 #include <quazip/quazip.h>
 #include <quazip/quazipfile.h>
 
+#include "delegate.h"
+
+class Area : public QScrollArea {
+    Q_OBJECT;
+    using QScrollArea::QScrollArea;
+    void resizeEvent(QResizeEvent *e) {
+        QScrollArea::resizeEvent(e);
+        emit resized();
+    };
+signals:
+    void resized();
+};
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -18,26 +31,26 @@ private:
     QString openFolder;
     QWidget *wid;
     QVBoxLayout *vbox;
-    QScrollArea *area;
+    Area *area;
     QTimer *resizeTimer;
     QComboBox *pageComboBox;
     QLabel *currentPage;
-    QLabel *currentFile;
     QPushButton *selectBtn;
-    QuaZip *zip;
-    QuaZipFile *file;
+    QString zipName;
+    QString fileName;
     QStringList fileList;
-    int currentIndex;
+    int lastIndex;
     QLabel *defaultLabel;
     QLabel *endLabel;
+    QListView *thumbView;
+    QStandardItemModel *model;
     QList<QLabel *> allLabels;
     QList<QPixmap> allPixmaps;
 
-
     int getImageWidth();
     void resizeTimeout();
-    void resizeEvent(QResizeEvent *);
     void loadFile(QString f);
+    void loadThumbs();
     void loadFromIndex(int index = 0);
     void loadNext();
     void loadPrev();

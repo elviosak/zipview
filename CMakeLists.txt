@@ -11,19 +11,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# QtCreator supports the following variables for Android, which are identical to qmake Android variables.
-# Check https://doc.qt.io/qt/deployment-android.html for more information.
-# They need to be set before the find_package( ...) calls below.
-
-#if(ANDROID)
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-#    if (ANDROID_ABI STREQUAL "armeabi-v7a")
-#        set(ANDROID_EXTRA_LIBS
-#            ${CMAKE_CURRENT_SOURCE_DIR}/path/to/libcrypto.so
-#            ${CMAKE_CURRENT_SOURCE_DIR}/path/to/libssl.so)
-#    endif()
-#endif()
-
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 find_package(QuaZip-Qt5 REQUIRED)
 
@@ -32,6 +21,8 @@ set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
         mainwindow.h
+        delegate.h
+        delegate.cpp
         zipview.qrc
 )
 
@@ -48,16 +39,7 @@ install(FILES ${DESKTOP_FILE} DESTINATION ${DESKTOP_DIR})
 install(TARGETS zipview RUNTIME DESTINATION "/usr/bin")
 
 target_link_libraries(zipview PRIVATE
+    Threads::Threads
     Qt5::Widgets
     QuaZip::QuaZip
 )
-
-#set_target_properties(zipview PROPERTIES
-#    MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
-#    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-#    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-#)
-
-#if(QT_VERSION_MAJOR EQUAL 6)
-#    qt_finalize_executable(zipview)
-#endif()

@@ -1,6 +1,9 @@
 #include "mainwindow.h"
+#include <QThread>
 
-#define WIDTH 600
+#define SCROLLWIDTH 600
+
+
 
 MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     : QMainWindow(parent)
@@ -9,12 +12,14 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     setWindowIcon(QIcon(":/zipview"));
     s = new QSettings("zipview", "zipview");
     openFolder = s->value("openFolder", QString()).toString();
+
     wid = new QWidget;
     vbox = new QVBoxLayout(wid);
     vbox->setContentsMargins(0,0,0,0);
     wid->setContentsMargins(0,0,0,0);
-    area = new QScrollArea;
+    area = new Area;
     area->setWidgetResizable(true);
+    area->setMinimumWidth(200);
     area->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     area->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     area->setWidget(wid);
@@ -36,26 +41,61 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     endLabel->setFont(bigFont);
     vbox->addWidget(endLabel, 0, Qt::AlignHCenter);
     endLabel->hide();
-
-    connect(area->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::scrollChanged);
     resizeTimer = new QTimer;
     resizeTimer->setInterval(100);
     resizeTimer->setSingleShot(true);
-    connect(resizeTimer, &QTimer::timeout, this, &MainWindow::resizeTimeout);
-    currentPage = new QLabel;
+    selectBtn = new QPushButton("Open");
     pageComboBox = new QComboBox;
     pageComboBox->setEditable(false);
+    currentPage = new QLabel;
+
+    auto tbWidget = new QWidget;
+    tbWidget->setContentsMargins(0,0,0,0);
+    auto tbLayout = new QHBoxLayout(tbWidget);
+    tbLayout->setContentsMargins(0,0,0,0);
+    tbLayout->addWidget(selectBtn);
+    tbLayout->addWidget(pageComboBox, 1);
+    tbLayout->addWidget(currentPage);
+    auto tb = new QToolBar;
+    tb->addWidget(tbWidget);
+    tb->setMovable(false);
+    addToolBar(Qt::ToolBarArea::BottomToolBarArea, tb);
+
+    auto dock = new QDockWidget;
+    thumbView = new QListView;
+    thumbView->setDragDropMode(QListView::NoDragDrop);
+    thumbView->setSelectionMode(QAbstractItemView::SingleSelection);
+    thumbView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    thumbView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    thumbView->setItemDelegate(new Delegate);
+    int w = TWIDTH + thumbView->verticalScrollBar()->sizeHint().width() + 8;
+    thumbView->setFixedWidth(w);
+    model = new QStandardItemModel;
+    thumbView->setModel(model);
+    dock->setWidget(thumbView);
+    dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    dock->setFeatures(QDockWidget::DockWidgetMovable);
+    addDockWidget(Qt::LeftDockWidgetArea, dock);
+    auto dockCheck = new QCheckBox;
+    dockCheck->setChecked(true);
+    dockCheck->setText("Preview");
+    connect(dockCheck, &QCheckBox::toggled, this, [dock] (bool checked) {
+        dock->setVisible(checked);
+    });
+    tbLayout->insertWidget(0 ,dockCheck);
+    resize(SCROLLWIDTH + TWIDTH, 800);
+
+    connect(thumbView, &QListView::clicked, this, [this] (const QModelIndex &index) {
+        loadFromIndex(index.row());
+    });
+    connect(area->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::scrollChanged);
+    connect(area, &Area::resized, resizeTimer, QOverload<>::of(&QTimer::start));
+    connect(resizeTimer, &QTimer::timeout, this, &MainWindow::resizeTimeout);
     connect(pageComboBox, QOverload<int>::of(&QComboBox::activated), this, &MainWindow::loadFromIndex);
-    currentFile = new QLabel;
-    selectBtn = new QPushButton("Open");
-    statusBar()->addWidget(selectBtn);
-    statusBar()->addWidget(pageComboBox);
-    statusBar()->addWidget(currentPage);
-    statusBar()->addWidget(currentFile);
     connect(selectBtn, &QPushButton::clicked, this, [=] {
         QString f = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                         openFolder,
-                                                        tr("Manga zip Files (*.zip *.cbz)"));
+                                                        tr("zip/cbz files (*.zip *.cbz)"));
         if (!f.isEmpty()) {
             QFileInfo info(f);
             openFolder = info.absolutePath();
@@ -63,7 +103,6 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
             loadFile(f);
         }
     });
-    resize(WIDTH, 800);
     if (argc > 1) {
         auto fileName = QString::fromUtf8(argv[1]);
         if (QFile::exists(fileName)) {
@@ -80,20 +119,14 @@ MainWindow::~MainWindow()
 
 int MainWindow::getImageWidth()
 {
-    int w = qMax(WIDTH, size().width());
-    int imgWidth = w -4;
+    int w = qMax(196, area->size().width());
+    int imgWidth = w - 2;
     return imgWidth;
 }
 
 void MainWindow::resizeTimeout()
 {
     loadPixmaps();
-}
-
-
-void MainWindow::resizeEvent(QResizeEvent *e)
-{
-    resizeTimer->start();
 }
 
 void MainWindow::loadFile(QString f)
@@ -106,76 +139,118 @@ void MainWindow::loadFile(QString f)
         return;
     }
     defaultLabel->hide();
-    zip = new QuaZip(f);
-    zip->open(QuaZip::Mode::mdUnzip);
-    fileList = zip->getFileNameList();
-    zip->goToFirstFile();
-    int total = zip->getEntriesCount();
+    QuaZip zip(f);
+    zipName = f;
+    zip.open(QuaZip::Mode::mdUnzip);
 
-    auto msg = "/ " + QString::number(total);
-    currentPage->setText(msg);
-    currentFile->setText(info.fileName());
-    setWindowTitle(QString("zipview - %1").arg(info.fileName()));
-    file = new QuaZipFile(zip);
-    zip->close();
+//    (?<!) - Negative look behind assertion
+//    matches end of string when NOT preceded by '/'
+//    to remove dir entries
+    QRegularExpression re("(?<!/)$");
+    fileList = zip.getFileNameList().filter(re);
+    fileList.sort();
+    int total = fileList.count();
+    currentPage->setText(QString::number(total) + " pages.");
+    fileName = info.fileName();
+    setWindowTitle(QString("zipview - (%1) %2").arg(QString::number(total), info.fileName()));
+    zip.close();
 
-    for (int i = 1; i <= total; ++i) {
-        pageComboBox->addItem(QString::number(i));
-    }
+    pageComboBox->addItems(fileList);
     loadFromIndex();
     endLabel->show();
+    auto thread = QThread::create([this] {this->loadThumbs();});
+    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
+    thread->start();
+}
+
+void MainWindow::loadThumbs()
+{
+    model->clear();
+    QuaZip zip(zipName);
+    zip.open(QuaZip::Mode::mdUnzip);
+    QuaZipFile file2(&zip);
+    for (int i = 0; i < fileList.count(); ++i) {
+        auto fName = fileList.at(i);
+        zip.setCurrentFile(fName);
+        file2.open(QIODevice::ReadOnly);
+        auto img = QImage::fromData(file2.readAll());
+        QPixmap pix = QPixmap::fromImage(img)
+                .scaled(TWIDTH,THEIGHT, Qt::KeepAspectRatio,Qt::SmoothTransformation);
+        auto item = new QStandardItem;
+        item->setData(pix, Qt::UserRole + 1);
+        item->setToolTip(fName);
+        model->appendRow(item);
+        file2.close();
+    }
+    zip.close();
 }
 
 void MainWindow::loadFromIndex(int index)
 {
     allPixmaps.clear();
-    int start = qMax(0, index - 1);
-    int end = qMin(start + 6, fileList.count() - 1);
-    pageComboBox->setCurrentIndex(start);
-    zip->open(QuaZip::Mode::mdUnzip);
-    for (int i = start; i <= end; ++i) {
-        zip->setCurrentFile(fileList.at(i));
-        file->open(QIODevice::ReadOnly);
-        auto data = file->readAll();
-        QPixmap pix;
-        pix.loadFromData(data);
-        allPixmaps.append(pix);
-        file->close();
-        currentIndex = i;
+    int start, end;
+    if (fileList.count() > 7) {
+        if (index <= 1) {
+            end = 6;
+            start = 0;
+        }
+        else {
+            end = qMin (index + 5, fileList.count() -1);
+            start = end - 6;
+        }
     }
-    zip->close();
+    else {
+        start = 0;
+        end = fileList.count() -1;
+    }
+    int offset = index - start;
+
+    pageComboBox->setCurrentIndex(index);
+    QuaZip zip(zipName);
+    zip.open(QuaZip::Mode::mdUnzip);
+    QuaZipFile file(&zip);
+    for (int i = start; i <= end; ++i) {
+        zip.setCurrentFile(fileList.at(i));
+        file.open(QIODevice::ReadOnly);
+        auto img = QImage::fromData(file.readAll());
+        auto pix = QPixmap::fromImage(img);
+        allPixmaps.append(pix);
+        file.close();
+        lastIndex = i;
+    }
+    zip.close();
     while (allPixmaps.count() < 7) {
         allPixmaps.append(QPixmap());
     }
     loadPixmaps();
-    if (index == 0) {
-        area->verticalScrollBar()->setValue(0);
+    int scrollValue = 0;
+    for (int i = 0; i < offset; ++i) {
+        scrollValue += allLabels.at(i)->sizeHint().height();
     }
-    else {
-        area->ensureWidgetVisible(allLabels.at(1));
-    }
+    area->verticalScrollBar()->setValue(scrollValue);
 
 }
 
 void MainWindow::loadNext()
 {
-    if (!(currentIndex + 1 < fileList.count()))
+    if (!(lastIndex + 1 < fileList.count()))
         return;
 
-    currentIndex++;
-    auto fileName = fileList.at(currentIndex);
-    zip->open(QuaZip::Mode::mdUnzip);
-    zip->setCurrentFile(fileName);
+    lastIndex++;
+    auto fileName = fileList.at(lastIndex);
+    QuaZip zip(zipName);
+    zip.open(QuaZip::Mode::mdUnzip);
+    QuaZipFile file(&zip);
+    zip.setCurrentFile(fileName);
+    file.open(QIODevice::ReadOnly);
+    auto img = QImage::fromData(file.readAll());
+    auto pix = QPixmap::fromImage(img);
     allPixmaps.removeFirst();
-    file->open(QIODevice::ReadOnly);
-    auto data = file->readAll();
-    QPixmap pix;
-    pix.loadFromData(data);
     allPixmaps.append(pix);
-    file->close();
-    zip->close();
+    file.close();
+    zip.close();
 
-    int h = allLabels.first()->contentsRect().height();
+    int h = allLabels.first()->height();
     int val = area->verticalScrollBar()->value();
     loadPixmaps();
     area->verticalScrollBar()->setValue(val - h);
@@ -183,28 +258,29 @@ void MainWindow::loadNext()
 
 void MainWindow::loadPrev()
 {
-    if (currentIndex < 7)
+    if (lastIndex < 7)
         return;
 
-    currentIndex--;
-    int first = currentIndex - 6;
+    lastIndex--;
+    int first = lastIndex - 6;
     auto fileName = fileList.at(first);
-    zip->open(QuaZip::Mode::mdUnzip);
-    zip->setCurrentFile(fileName);
+    QuaZip zip(zipName);
+    zip.open(QuaZip::Mode::mdUnzip);
+    QuaZipFile file(&zip);
+    zip.setCurrentFile(fileName);
     allPixmaps.removeLast();
-    file->open(QIODevice::ReadOnly);
-    auto data = file->readAll();
-    QPixmap pix;
-    pix.loadFromData(data);
+    file.open(QIODevice::ReadOnly);
+    auto img = QImage::fromData(file.readAll());
+    auto pix = QPixmap::fromImage(img);
     allPixmaps.prepend(pix);
-    file->close();
-    zip->close();
+    file.close();
+    zip.close();
 
 
     int val = area->verticalScrollBar()->value();
     loadPixmaps();
     int h = allLabels.first()->contentsRect().height();
-    area->verticalScrollBar()->setValue(val + h - 60);
+    area->verticalScrollBar()->setValue(val + h);
 }
 
 void MainWindow::loadPixmaps()
@@ -241,16 +317,27 @@ void MainWindow::scrollChanged(int /*v*/)
 void MainWindow::updatePage()
 {
     int page = 0;
+    int intersected = 0;
     for (int i = 0; i < allLabels.count(); ++i) {
         QRect lblGeo = allLabels.at(i)->geometry();
         lblGeo.translate(0, wid->geometry().y());
-        if (lblGeo.intersects(area->geometry())) {
-            page = i + 1;
-            break;
+        QRect r = lblGeo.intersected(area->geometry());
+        if (r.height() > intersected) {
+            intersected = r.height();
+            page = i;
         }
     }
-    page = currentIndex - qMin(fileList.count(), 7) + page;
+    page = page + lastIndex - qMin(fileList.count() - 1, 6) ;
     pageComboBox->setCurrentIndex(page);
+    auto msg = QString("page %1 of %2").arg(QString::number(page + 1), QString::number(fileList.count()));
+    currentPage->setText(msg);
+    auto item = model->item(page);
+    auto index = model->indexFromItem(item);
+    thumbView->setCurrentIndex(index);
+    setWindowTitle(QString("zipview - (%1/%2) %3")
+                   .arg(QString::number(page + 1)
+                        , QString::number(fileList.count())
+                        , fileName));
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *e)
