@@ -12,7 +12,7 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     setWindowIcon(QIcon(":/zipview"));
     s = new QSettings("zipview", "zipview");
     openFolder = s->value("openFolder", QString()).toString();
-
+    auto thumbSide = s->value("thumbSide", Qt::LeftDockWidgetArea).value<Qt::DockWidgetArea>();
     wid = new QWidget;
     vbox = new QVBoxLayout(wid);
     vbox->setContentsMargins(0,0,0,0);
@@ -75,7 +75,7 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     dock->setWidget(thumbView);
     dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     dock->setFeatures(QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::LeftDockWidgetArea, dock);
+    addDockWidget(thumbSide, dock);
     auto dockCheck = new QCheckBox;
     dockCheck->setChecked(true);
     dockCheck->setText("Preview");
@@ -87,6 +87,9 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
 
     connect(thumbView, &QListView::clicked, this, [this] (const QModelIndex &index) {
         loadFromIndex(index.row());
+    });
+    connect(dock, &QDockWidget::dockLocationChanged, this, [=] (Qt::DockWidgetArea area){
+        s->setValue("thumbSide", area);
     });
     connect(area->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::scrollChanged);
     connect(area, &Area::resized, resizeTimer, QOverload<>::of(&QTimer::start));
