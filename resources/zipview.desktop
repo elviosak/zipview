@@ -1,10 +1,10 @@
 [Desktop Entry]
-Type=Application
 Name=zipview
+Type=Application
 Comment=Image viewer for compressed manga/comic books
 Exec=zipview %f
 Icon=zipview
 Terminal=false
 Categories=Graphics;Viewer;
 MimeType=application/zip;application/cbz;
-Name[en_US]=zipview.desktop
+Name[en_US]=zipview
