@@ -9,21 +9,13 @@
 
 class Area : public QScrollArea {
     Q_OBJECT;
-    using QScrollArea::QScrollArea;
 
+    using QScrollArea::QScrollArea;
 protected:
     void resizeEvent(QResizeEvent *e) override {
         QScrollArea::resizeEvent(e);
         emit resized();
     };
-    void wheelEvent(QWheelEvent *e) override {
-//        e->accept();
-        QPropertyAnimation animation(verticalScrollBar(), "value");
-        animation.setStartValue(verticalScrollBar()->value());
-        animation.setEndValue(verticalScrollBar()->value() - 2 * e->angleDelta().y());
-        animation.setDuration(40);
-        animation.start();
-    }
 signals:
     void resized();
 };

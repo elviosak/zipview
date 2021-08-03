@@ -146,10 +146,7 @@ void MainWindow::loadFile(QString f)
     zipName = f;
     zip.open(QuaZip::Mode::mdUnzip);
 
-//    (?<!) - Negative look behind assertion
-//    matches end of string when NOT preceded by '/'
-//    to remove dir entries
-    QRegularExpression re("(?<!/)$");
+    QRegularExpression re("(\\.bmp|\\.png|\\.jpg|\\.jpeg)$", QRegularExpression::PatternOption::CaseInsensitiveOption);
     fileList = zip.getFileNameList().filter(re);
     fileList.sort();
     int total = fileList.count();
