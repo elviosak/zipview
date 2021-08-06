@@ -70,6 +70,7 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     thumbView->setItemDelegate(new Delegate);
     int w = TWIDTH + thumbView->verticalScrollBar()->sizeHint().width() + 8;
     thumbView->setFixedWidth(w);
+
     model = new QStandardItemModel;
     thumbView->setModel(model);
     dock->setWidget(thumbView);
@@ -146,7 +147,7 @@ void MainWindow::loadFile(QString f)
     zipName = f;
     zip.open(QuaZip::Mode::mdUnzip);
 
-    QRegularExpression re("(\\.bmp|\\.png|\\.jpg|\\.jpeg)$", QRegularExpression::PatternOption::CaseInsensitiveOption);
+    QRegularExpression re("(\\.bmp|\\.png|\\.jpg|\\.jpeg|\\.webp)$", QRegularExpression::PatternOption::CaseInsensitiveOption);
     fileList = zip.getFileNameList().filter(re);
     fileList.sort();
     int total = fileList.count();
@@ -175,7 +176,7 @@ void MainWindow::loadThumbs()
         file2.open(QIODevice::ReadOnly);
         auto img = QImage::fromData(file2.readAll());
         QPixmap pix = QPixmap::fromImage(img)
-                .scaled(TWIDTH,THEIGHT, Qt::KeepAspectRatio,Qt::SmoothTransformation);
+                .scaledToWidth(TWIDTH, Qt::SmoothTransformation);
         auto item = new QStandardItem;
         item->setData(pix, Qt::UserRole + 1);
         item->setToolTip(fName);
@@ -233,7 +234,7 @@ void MainWindow::loadFromIndex(int index)
 
 void MainWindow::loadNext()
 {
-    if (!(lastIndex + 1 < fileList.count()))
+    if (!(lastIndex < fileList.count() - 1))
         return;
 
     lastIndex++;
@@ -300,15 +301,11 @@ void MainWindow::loadPixmaps()
 
 void MainWindow::scrollChanged(int /*v*/)
 {
-    if (allLabels.at(5)
-        && allLabels.at(5)->geometry()
-            .translated(0, wid->geometry().y())
-            .intersects(area->geometry()))
+    if (allLabels.at(4)
+        && (allLabels.at(4)->geometry().y() + wid->geometry().y()) < 0)
         loadNext();
     else if (allLabels.at(0)
-        && allLabels.at(0)->geometry()
-           .translated(0, wid->geometry().y())
-           .intersects(area->geometry()))
+        && (allLabels.at(0)->geometry().y() + wid->geometry().y()) > -30)
         loadPrev();
 
     updatePage();
