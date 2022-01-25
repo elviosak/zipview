@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include <QThread>
+#include <algorithm>
 
 #define SCROLLWIDTH 600
 
@@ -13,6 +14,7 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     s = new QSettings("zipview", "zipview");
     openFolder = s->value("openFolder", QString()).toString();
     auto thumbSide = s->value("thumbSide", Qt::LeftDockWidgetArea).value<Qt::DockWidgetArea>();
+    auto geo = s->value("geometry", QRect()).value<QRect>();
     wid = new QWidget;
     vbox = new QVBoxLayout(wid);
     vbox->setContentsMargins(0,0,0,0);
@@ -21,8 +23,11 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     area->setWidgetResizable(true);
     area->setMinimumWidth(200);
     area->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    area->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+//    area->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     area->setWidget(wid);
+    int scrollStep = s->value("scrollStep", 0).toInt();
+    if (scrollStep != 0)
+        area->verticalScrollBar()->setSingleStep(scrollStep);
     setCentralWidget(area);
     auto bigFont = font();
     if (font().pixelSize() > 0)
@@ -47,6 +52,11 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     selectBtn = new QPushButton("Open");
     pageComboBox = new QComboBox;
     pageComboBox->setEditable(false);
+    scrollSpin = new QSpinBox;
+    scrollSpin->setValue(area->verticalScrollBar()->singleStep());
+    scrollSpin->setRange(10, 1000);
+    scrollSpin->setSingleStep(10);
+
     currentPage = new QLabel;
 
     auto tbWidget = new QWidget;
@@ -54,6 +64,7 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     auto tbLayout = new QHBoxLayout(tbWidget);
     tbLayout->setContentsMargins(0,0,0,0);
     tbLayout->addWidget(selectBtn);
+    tbLayout->addWidget(scrollSpin);
     tbLayout->addWidget(pageComboBox, 1);
     tbLayout->addWidget(currentPage);
     auto tb = new QToolBar;
@@ -84,7 +95,14 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
         dock->setVisible(checked);
     });
     tbLayout->insertWidget(0 ,dockCheck);
-    resize(SCROLLWIDTH + TWIDTH, 800);
+    if (geo == QRect()) {
+        qDebug() << "size" << QSize(SCROLLWIDTH + TWIDTH, 800);
+        resize(SCROLLWIDTH + TWIDTH, 800);
+    }
+    else {
+        qDebug() << "geo" << geo;
+        setGeometry(geo);
+    }
 
     connect(thumbView, &QListView::clicked, this, [this] (const QModelIndex &index) {
         loadFromIndex(index.row());
@@ -96,6 +114,10 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
     connect(area, &Area::resized, resizeTimer, QOverload<>::of(&QTimer::start));
     connect(resizeTimer, &QTimer::timeout, this, &MainWindow::resizeTimeout);
     connect(pageComboBox, QOverload<int>::of(&QComboBox::activated), this, &MainWindow::loadFromIndex);
+    connect(scrollSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [=] (int value) {
+        s->setValue("scrollStep", value);
+        area->verticalScrollBar()->setSingleStep(value);
+    });
     connect(selectBtn, &QPushButton::clicked, this, [=] {
         QString f = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                         openFolder,
@@ -107,6 +129,7 @@ MainWindow::MainWindow(int argc, char *argv[], QWidget *parent)
             loadFile(f);
         }
     });
+
     if (argc > 1) {
         auto fileName = QString::fromUtf8(argv[1]);
         if (QFile::exists(fileName)) {
@@ -123,7 +146,7 @@ MainWindow::~MainWindow()
 
 int MainWindow::getImageWidth()
 {
-    int w = qMax(196, area->size().width());
+    int w = qMax(196, area->size().width() - area->verticalScrollBar()->sizeHint().width());
     int imgWidth = w - 2;
     return imgWidth;
 }
@@ -131,6 +154,20 @@ int MainWindow::getImageWidth()
 void MainWindow::resizeTimeout()
 {
     loadPixmaps();
+}
+
+bool compare(const QString &v1, const QString &v2) {
+    QRegularExpression r("(\\d+)");
+    auto match1 = r.globalMatch(v1);
+    auto match2 = r.globalMatch(v2);
+    while (match1.hasNext() && match2.hasNext()) {
+        int num1 = match1.next().captured(1).toInt();
+        int num2 = match2.next().captured(1).toInt();
+        if (num1 != num2) {
+            return (num1 < num2);
+        }
+    }
+    return v1 < v2;
 }
 
 void MainWindow::loadFile(QString f)
@@ -149,11 +186,13 @@ void MainWindow::loadFile(QString f)
 
     QRegularExpression re("(\\.bmp|\\.png|\\.jpg|\\.jpeg|\\.webp)$", QRegularExpression::PatternOption::CaseInsensitiveOption);
     fileList = zip.getFileNameList().filter(re);
-    fileList.sort();
+//    fileList.removeAll("final.jpg");
+    std::sort(fileList.begin(), fileList.end(), compare);
+//    fileList.sort();
     int total = fileList.count();
     currentPage->setText(QString::number(total) + " pages.");
     fileName = info.fileName();
-    setWindowTitle(QString("zipview - (%1) %2").arg(QString::number(total), info.fileName()));
+    setWindowTitle(QString("(%1) %2 - zipview").arg(QString::number(total), info.fileName()));
     zip.close();
 
     pageComboBox->addItems(fileList);
@@ -331,7 +370,7 @@ void MainWindow::updatePage()
     auto item = model->item(page);
     auto index = model->indexFromItem(item);
     thumbView->setCurrentIndex(index);
-    setWindowTitle(QString("zipview - (%1/%2) %3")
+    setWindowTitle(QString("(%1/%2) %3 - zipview")
                    .arg(QString::number(page + 1)
                         , QString::number(fileList.count())
                         , fileName));
@@ -353,4 +392,11 @@ void MainWindow::dropEvent(QDropEvent *e)
     if (!fileName.isEmpty())
         loadFile(fileName);
 
+}
+
+void MainWindow::closeEvent(QCloseEvent *e)
+{
+    s->setValue("geometry", QVariant::fromValue(geometry()));
+    qDebug() << "destruct" << geometry();
+    QMainWindow::closeEvent(e);
 }

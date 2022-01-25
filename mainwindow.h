@@ -36,6 +36,7 @@ private:
     Area *area;
     QTimer *resizeTimer;
     QComboBox *pageComboBox;
+    QSpinBox *scrollSpin;
     QLabel *currentPage;
     QPushButton *selectBtn;
     QString zipName;
@@ -51,6 +52,7 @@ private:
 
     int getImageWidth();
     void resizeTimeout();
+//    bool compare(const QString &v1, const QString &v2);
     void loadFile(QString f);
     void loadThumbs();
     void loadFromIndex(int index = 0);
@@ -61,5 +63,6 @@ private:
     void updatePage();
     void dragEnterEvent(QDragEnterEvent *e) override;
     void dropEvent(QDropEvent *e) override;
+    void closeEvent(QCloseEvent *e) override;
 };
 #endif // MAINWINDOW_H
