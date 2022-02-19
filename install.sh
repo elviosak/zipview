@@ -1,6 +1,3 @@
 #!/bin/bash
 
-mkdir -p build
-rm -rf build/*
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release .. && make -j$(nproc) && sudo make install
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr && cmake --build build -- -j$(nproc) && sudo cmake --install build

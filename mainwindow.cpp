@@ -157,7 +157,7 @@ void MainWindow::resizeTimeout()
 }
 
 bool compare(const QString &v1, const QString &v2) {
-    QRegularExpression r("(\\d+)");
+    static QRegularExpression r("(\\d+)");
     auto match1 = r.globalMatch(v1);
     auto match2 = r.globalMatch(v2);
     while (match1.hasNext() && match2.hasNext()) {
