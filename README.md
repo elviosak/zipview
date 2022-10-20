@@ -29,7 +29,7 @@ sudo pacman --needed -S base-devel cmake git qt5-base quazip
 
 ## Installation
 ```bash
-git clone https://github.com/slidinghotdog/zipview.git
+git clone https://github.com/elviosak/zipview.git
 mkdir -p zipview/build
 cd zipview/build
 cmake .. && make -j$(nproc) && sudo make install
