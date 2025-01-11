@@ -72,6 +72,7 @@ void Loader::setFile(QString path)
         if (true) {
             QImageReader reader(&file);
             s = reader.size();
+//            reader.
             canRead = reader.canRead();
         }
 //        reader.setAutoDetectImageFormat(false);
@@ -84,8 +85,8 @@ void Loader::setFile(QString path)
 //            reader.~QImageReader();
             qDebug() << "size1" << s;
             if (!s.isValid()) {
-                file.close();
-                file.open(QuaZipFile::ReadOnly);
+//                file.close();
+//                file.open(QuaZipFile::ReadOnly);
                 QImage img = QImage::fromData(file.readAll());
 //                if (reader.read(&img))
 //                    qDebug() << "read ok";
@@ -96,10 +97,9 @@ void Loader::setFile(QString path)
                 s = img.size();
                 qDebug() << "size2" << s;
             }
-
-                item->setData(s, Qt::SizeHintRole);
-                fileList.append(fName);
-                emit itemLoaded(item);
+            item->setData(s, Qt::SizeHintRole);
+            fileList.append(fName);
+            emit itemLoaded(item);
         }
         qDebug() << "c1";
         file.close();
