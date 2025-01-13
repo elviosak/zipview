@@ -1,12 +1,13 @@
 #include "view.h"
-//#include "delegate.h"
+// #include "delegate.h"
 
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QScrollBar>
 
 #include <QDebug>
 
-View::View(QWidget *parent)
+View::View(QWidget* parent)
     : QListView(parent)
 {
     setDragDropMode(QListView::NoDragDrop);
@@ -32,33 +33,35 @@ View::View(QWidget *parent)
     connect(unloadTimer, &QTimer::timeout, this, &View::unloadTimeout);
 }
 
-void View::setItemPixmap(const QModelIndex &index, const QPixmap &pix)
+void View::setItemPixmap(const QModelIndex& index, const QPixmap& pix)
 {
     itemModel->setData(index, pix, Qt::DecorationRole);
     loadedIndexes.append(index);
     update(index);
 }
 
-void View::onFileListLoaded(const QStringList &fileList)
+void View::onFileListLoaded(const QStringList& fileList)
 {
     emit fileListLoaded(fileList);
 }
 
-void View::onItemLoaded(QStandardItem *item)
+void View::onItemLoaded(QStandardItem* item)
 {
     itemModel->appendRow(item);
 }
 
 void View::resizeTimeout()
 {
-    if (nullptr == itemModel)
+    if (nullptr == itemModel) {
         return;
+    }
 
     auto item = new QStandardItem("Refresh");
     itemModel->insertRow(0, item);
     itemModel->removeRow(0);
-    if (maxScroll == 0)
+    if (maxScroll == 0) {
         return;
+    }
     double fraction = currentScroll / maxScroll;
     maxScroll = verticalScrollBar()->maximum();
     currentScroll = fraction * maxScroll;
@@ -84,17 +87,18 @@ void View::unloadTimeout()
     loadedIndexes = indexesCopy;
 }
 
-void View::loadFile(const QString &f)
+void View::loadFile(const QString& f)
 {
     unloadTimer->stop();
     QFileInfo info(f);
-    if (!info.exists() && !(info.suffix().toLower() == "zip" || info.suffix().toLower() == "cbz")) {
+    if (!info.exists() && !(info.suffix().toLower() == "zip" || info.suffix().toLower() == "cbz" || info.suffix().toLower() == "7z")) {
         QMessageBox::warning(this, "Invalid File", QString("file: %1\n is not valid").arg(f));
         return;
     }
 
-    if (nullptr != itemModel)
+    if (nullptr != itemModel) {
         itemModel->deleteLater();
+    }
 
     itemModel = new QStandardItemModel;
     setModel(itemModel);
@@ -121,15 +125,17 @@ void View::loadFile(const QString &f)
 void View::setCurrentFile(int i)
 {
     auto index = itemModel->index(i, 0);
-    if (index.isValid())
+    if (index.isValid()) {
         scrollTo(index);
+    }
 }
 
 void View::scrolled(int value)
 {
-    auto index = indexAt(QPoint(width()/2, height()/2));
-    if (!index.isValid())
+    auto index = indexAt(QPoint(width() / 2, height() / 2));
+    if (!index.isValid()) {
         return;
+    }
     emit currentFileChanged(index.data(Qt::DisplayRole).toString());
 
     QModelIndex next;
@@ -143,27 +149,25 @@ void View::scrolled(int value)
     }
 
     if (next.isValid()
-            && next.data(Qt::DecorationRole).value<QPixmap>().isNull()
-            && !next.data(Qt::DisplayRole).toString().isEmpty()) {
+        && next.data(Qt::DecorationRole).value<QPixmap>().isNull()
+        && !next.data(Qt::DisplayRole).toString().isEmpty()) {
         loader->addToQueue(next);
     }
     currentScroll = value;
 }
 
-void View::mousePressEvent(QMouseEvent *e)
+void View::mousePressEvent(QMouseEvent* e)
 {
     e->ignore();
 }
 
-void View::mouseReleaseEvent(QMouseEvent *e)
+void View::mouseReleaseEvent(QMouseEvent* e)
 {
     e->ignore();
 }
 
-void View::resizeEvent(QResizeEvent *e)
+void View::resizeEvent(QResizeEvent* e)
 {
     QListView::resizeEvent(e);
     resizeTimer->start();
 }
-
-

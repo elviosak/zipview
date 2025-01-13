@@ -2,11 +2,12 @@
 
 Simple manga/comic book reader with continuous scrolling.
 
-Opens `*.zip` and `*.cbz` files.
+Opens `*.zip`, `*.cbz` and `*.7z` files.
+
 
 ## Usage
 
-Click "Open" button to browse and select a file, drop a file in the program window or with cli:
+Drop a file in the program window or with cli:
 ```
 zipview "/path/to/file.zip"
 ```
@@ -19,20 +20,22 @@ Scroll with mouse wheel or click to focus the image and use Up/Down arrow keys o
 - CMake
 - base-devel (gcc, make)
 - Git
-- Qt5
-- [QuaZip](https://github.com/stachenov/quazip)
+- Qt6
+- [KArchive](https://api.kde.org/frameworks/karchive/html/index.html)
+- [KImageFormats](https://api.kde.org/frameworks/kimageformats/html/index.html) (Optional, if installed provides compatibility with extra image formats)
 
 ### Archlinux
 ```bash
-sudo pacman --needed -S base-devel cmake git qt5-base quazip
+sudo pacman --needed -S base-devel cmake git qt6-base karchive
 ```
 
 ## Installation
 ```bash
-git clone https://github.com/slidinghotdog/zipview.git
-mkdir -p zipview/build
-cd zipview/build
-cmake .. && make -j$(nproc) && sudo make install
+git clone https://github.com/elviosak/zipview.git
+cd zipview
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+&& cmake --build build -- -j$(nproc) \
+&& sudo cmake --install build
 ```
 
 

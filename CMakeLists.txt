@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 project(zipview VERSION 0.2 LANGUAGES CXX)
 
@@ -14,9 +14,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
-find_package(QuaZip-Qt${QT_VERSION_MAJOR} REQUIRED)
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
+# find_package(QuaZip-Qt6 REQUIRED)
+find_package(KF6Archive)
 
 set(PROJECT_SOURCES
         main.cpp
@@ -28,32 +28,33 @@ set(PROJECT_SOURCES
         window.h window.cpp
         zipview.qrc
 )
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
+# if(6 GREATER_EQUAL 6)
     qt_add_executable(zipview
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
     )
-else()
-    add_executable(zipview
-            ${PROJECT_SOURCES}
-    )
-endif()
+# else()
+#     add_executable(zipview
+#             ${PROJECT_SOURCES}
+#     )
+# endif()
 
 set(ICON_FILE "resources/zipview.svg")
 set(DESKTOP_FILE "resources/zipview.desktop")
-set(ICON_DIR /usr/share/icons/hicolor/scalable/apps)
-set(DESKTOP_DIR /usr/share/applications)
+set(ICON_DIR ${CMAKE_INSTALL_PREFIX}/share/icons/hicolor/scalable/apps)
+set(DESKTOP_DIR ${CMAKE_INSTALL_PREFIX}/share/applications)
 
 install(FILES ${ICON_FILE} DESTINATION ${ICON_DIR})
 install(FILES ${DESKTOP_FILE} DESTINATION ${DESKTOP_DIR})
-install(TARGETS zipview RUNTIME DESTINATION "/usr/bin")
+install(TARGETS zipview RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 target_link_libraries(zipview PRIVATE
     Threads::Threads
-    Qt${QT_VERSION_MAJOR}::Widgets
-    QuaZip::QuaZip
+    Qt6::Widgets
+    KF6::Archive
+    # QuaZip::QuaZip
 )
 
-if(QT_VERSION_MAJOR EQUAL 6)
+# if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(zipview)
-endif()
+# endif()

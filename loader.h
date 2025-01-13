@@ -1,32 +1,41 @@
 #ifndef LOADER_H
 #define LOADER_H
 
-#include <QThread>
-#include <QObject>
-#include <QModelIndex>
-#include <QStandardItem>
 #include <QMap>
+#include <QModelIndex>
+#include <QObject>
+#include <QStandardItem>
+#include <QStringList>
+#include <QThread>
 
-#include <quazip/quazip.h>
-#include <quazip/quazipfile.h>
+#include <K7Zip>
+#include <KArchive>
+#include <KZip>
+// #include <quazip/quazip.h>
+// #include <quazip/quazipfile.h>
 
 class Loader : public QThread
 {
     Q_OBJECT
 public:
-    Loader(QObject *parent = nullptr);
+    Loader(QObject* parent = nullptr);
     ~Loader();
     void setFile(QString path);
-    void addToQueue(const QModelIndex &index);
+    void addToQueue(const QModelIndex& index);
     void run() override;
+    QStringList getEntries(KArchive* zip, const KArchiveDirectory* dir);
+
 private:
     QString fileName;
-    QuaZip *zip = nullptr;
+    // QuaZip* zip = nullptr;
+
+    KArchive* zip = nullptr;
     QList<QModelIndex> queue;
+
 signals:
-    void pixmapLoaded(const QModelIndex &index, const QPixmap &pix);
-    void itemLoaded(QStandardItem *item);
-    void fileListLoaded(const QStringList &fileList);
+    void pixmapLoaded(const QModelIndex& index, const QPixmap& pix);
+    void itemLoaded(QStandardItem* item);
+    void fileListLoaded(const QStringList& fileList);
 };
 
 #endif // LOADER_H
