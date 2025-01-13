@@ -14,7 +14,7 @@ zipview "/path/to/file.zip"
 
 Scroll with mouse wheel or click to focus the image and use Up/Down arrow keys or Page Up/Page Down.
 
-![screenshot](examples/screenshot.png)
+![screenshot](examples/screenshot2.png)
 
 ## Requirements
 - CMake
