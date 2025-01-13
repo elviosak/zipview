@@ -46,14 +46,14 @@ Open source comic licensed under [Creative Commons Attribution 4.0 International
 
 #### Attribution to:
 
-Art: David Revoy.
-Scenario: David Revoy.
+Art: David Revoy.  
+Scenario: David Revoy.  
 English (original version) Proofreading: Alex Gryson, Amireeti.
 
 
 #### Credit for the universe of Pepper&Carrot:
 
-Creation: David Revoy.
-Lead Maintainer: Craig Maloney.
-Writers: Craig Maloney, Nicolas Artance, Scribblemaniac, Valvin.
+Creation: David Revoy.  
+Lead Maintainer: Craig Maloney.  
+Writers: Craig Maloney, Nicolas Artance, Scribblemaniac, Valvin.  
 Correctors: Alex Gryson, CGand, Hali, Moini, Willem Sonke.
