@@ -20,7 +20,6 @@ find_package(KF6Archive)
 
 set(PROJECT_SOURCES
         main.cpp
-#        mainwindow.cpp mainwindow.h
         delegate.h
         delegate.cpp
         view.h view.cpp
