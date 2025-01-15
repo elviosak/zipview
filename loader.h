@@ -9,10 +9,10 @@
 #include <QThread>
 
 #include <K7Zip>
-#include <KArchive>
-#include <KZip>
-// #include <quazip/quazip.h>
-// #include <quazip/quazipfile.h>
+// #include <KArchive>
+// #include <KZip>
+#include <quazip/quazip.h>
+#include <quazip/quazipfile.h>
 
 class Loader : public QThread
 {
@@ -20,16 +20,18 @@ class Loader : public QThread
 public:
     Loader(QObject* parent = nullptr);
     ~Loader();
-    void setFile(QString path);
+    void load7zip(const QString& path);
+    void loadZip(const QString& path);
+    void setFile(const QString& path);
     void addToQueue(const QModelIndex& index);
     void run() override;
     QStringList getEntries(KArchive* zip, const KArchiveDirectory* dir);
 
 private:
     QString fileName;
-    // QuaZip* zip = nullptr;
+    QuaZip* zip = nullptr;
 
-    KArchive* zip = nullptr;
+    K7Zip* sevenZip = nullptr;
     QList<QModelIndex> queue;
 
 signals:

@@ -15,7 +15,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 find_package(Qt6 COMPONENTS Widgets REQUIRED)
-# find_package(QuaZip-Qt6 REQUIRED)
+find_package(QuaZip-Qt6 REQUIRED)
 find_package(KF6Archive)
 
 set(PROJECT_SOURCES
@@ -51,7 +51,7 @@ target_link_libraries(zipview PRIVATE
     Threads::Threads
     Qt6::Widgets
     KF6::Archive
-    # QuaZip::QuaZip
+    QuaZip::QuaZip
 )
 
 # if(QT_VERSION_MAJOR EQUAL 6)

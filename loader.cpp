@@ -43,6 +43,10 @@ Loader::Loader(QObject* parent)
 }
 Loader::~Loader()
 {
+    if (nullptr != sevenZip) {
+        sevenZip->close();
+        delete sevenZip;
+    }
     if (nullptr != zip) {
         zip->close();
         delete zip;
@@ -77,31 +81,13 @@ QStringList Loader::getEntries(KArchive* zip, const KArchiveDirectory* dir)
     return list;
 }
 
-// Using KArchive
-void Loader::setFile(QString path)
+void Loader::load7zip(const QString& path)
 {
-    if (nullptr != zip) {
-        zip->close();
-        delete zip;
-    }
-    fileName = path;
-    QFileInfo info(path);
-    if (!info.exists()) {
-        return;
-    }
-    if (info.suffix().toLower() == "zip" || info.suffix().toLower() == "cbz") {
-        zip = new KZip(path);
-    }
-    else if (info.suffix().toLower() == "7z") {
-        zip = new K7Zip(path);
-    }
-    else {
-        return;
-    }
-    zip->open(QIODeviceBase::ReadOnly);
+    sevenZip = new K7Zip(path);
+    sevenZip->open(QIODeviceBase::ReadOnly);
 
-    auto dir = zip->directory();
-    QStringList tempList = getEntries(zip, dir);
+    auto dir = sevenZip->directory();
+    QStringList tempList = getEntries(sevenZip, dir);
 
     std::sort(tempList.begin(), tempList.end(), compareNumbers);
     QStringList fileList;
@@ -115,7 +101,6 @@ void Loader::setFile(QString path)
         if (nullptr != file) {
             auto item = new QStandardItem;
             item->setText(fName);
-            // auto img = QImage::fromData(file->data());
             auto device = file->createDevice();
             QImageReader reader(device);
             if (reader.canRead()) {
@@ -131,6 +116,75 @@ void Loader::setFile(QString path)
         }
     }
     emit fileListLoaded(fileList);
+}
+
+void Loader::loadZip(const QString& path)
+{
+    zip = new QuaZip(fileName);
+    zip->open(QuaZip::mdUnzip);
+
+    QStringList fileList;
+    QStringList tempList = zip->getFileNameList(); //.filter(re);
+
+    std::sort(tempList.begin(), tempList.end(), compareNumbers);
+
+    QuaZipFile file(zip);
+    while (tempList.size() > 0) {
+        auto fName = tempList.takeFirst();
+
+        zip->setCurrentFile(fName);
+        file.open(QuaZipFile::ReadOnly);
+
+        QImageReader reader(&file);
+
+        if (reader.canRead()) {
+            auto item = new QStandardItem;
+            item->setText(fName);
+            QSize s = reader.size();
+            if (!s.isValid()) {
+                QImage img = QImage::fromData(file.readAll());
+                s = img.size();
+                qDebug() << "size2" << s;
+            }
+            item->setData(s, Qt::SizeHintRole);
+            fileList.append(fName);
+            emit itemLoaded(item);
+        }
+        file.close();
+    }
+    emit fileListLoaded(fileList);
+}
+
+// Using KArchive
+void Loader::setFile(const QString& path)
+{
+    if (nullptr != sevenZip) {
+        sevenZip->close();
+        delete sevenZip;
+        sevenZip = nullptr;
+    }
+    if (nullptr != zip) {
+        zip->close();
+        delete zip;
+        zip = nullptr;
+    }
+    emit fileListLoaded(QStringList());
+    fileName = path;
+    QFileInfo info(path);
+    if (!info.exists()) {
+        return;
+    }
+    if (info.suffix().toLower() == "zip" || info.suffix().toLower() == "cbz") {
+        qDebug() << "QuaZip: " << path;
+        loadZip(path);
+    }
+    else if (info.suffix().toLower() == "7z") {
+        qDebug() << "KArchive: " << path;
+        load7zip(path);
+    }
+    else {
+        return;
+    }
 }
 
 // Using Quazip
@@ -203,20 +257,34 @@ void Loader::addToQueue(const QModelIndex& index)
 
 void Loader::run()
 {
-    if (nullptr == zip || queue.count() == 0) {
+    if ((nullptr == sevenZip && nullptr == zip) || queue.count() == 0) {
         return;
     }
 
     // zip->open(QuaZip::mdUnzip);
-    // QuaZipFile file(zip);
-    while (queue.size() > 0) {
-        auto index = queue.takeFirst();
-        QString fName(index.data(Qt::DisplayRole).toString());
-        auto file = zip->directory()->file(fName);
-        if (nullptr != file) {
-            auto pix = QPixmap::fromImage(QImage::fromData(file->data()));
+    if (nullptr != zip) {
+        QuaZipFile file(zip);
+        while (queue.size() > 0) {
+            auto index = queue.takeFirst();
+            QString fName(index.data(Qt::DisplayRole).toString());
+            zip->setCurrentFile(fName);
+            file.open(QuaZipFile::ReadOnly);
+            auto pix = QPixmap::fromImage(QImage::fromData(file.readAll()));
+            file.close();
             emit pixmapLoaded(index, pix);
         }
     }
+    else if (nullptr != sevenZip) {
+        while (queue.size() > 0) {
+            auto index = queue.takeFirst();
+            QString fName(index.data(Qt::DisplayRole).toString());
+            auto file = sevenZip->directory()->file(fName);
+            if (nullptr != file) {
+                auto pix = QPixmap::fromImage(QImage::fromData(file->data()));
+                emit pixmapLoaded(index, pix);
+            }
+        }
+    }
+
     // zip->close();
 }
