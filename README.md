@@ -33,9 +33,8 @@ sudo pacman --needed -S base-devel cmake git qt6-base karchive
 ```bash
 git clone https://github.com/elviosak/zipview.git
 cd zipview
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
-&& cmake --build build -- -j$(nproc) \
-&& sudo cmake --install build
+make
+sudo make install
 ```
 
 
