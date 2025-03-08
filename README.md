@@ -26,7 +26,7 @@ Scroll with mouse wheel or click to focus the image and use Up/Down arrow keys o
 
 ### Archlinux
 ```bash
-sudo pacman --needed -S base-devel cmake git qt6-base karchive
+sudo pacman --needed -S base-devel cmake git qt6-base quazip-qt6 karchive
 ```
 
 ## Installation
